@@ -1,0 +1,795 @@
+================================================================================
+RADAR & SATELLITE COMMUNICATION LABORATORY (26ETPEL751)
+COMPLETE EXPERIMENT WRITEUP: AIM, APPARATUS, THEORY, BLOCK DIAGRAMS,
+PROCEDURE, MATLAB CODE, GRAPH OUTPUTS & CONCLUSIONS (EXPERIMENTS 1 TO 9)
+================================================================================
+
+
+================================================================================
+EXPERIMENT 1: RADAR RANGE EQUATION SIMULATION
+================================================================================
+
+1. AIM:
+   To simulate the Radar Range Equation in MATLAB and analyze the effect of 
+   Peak Transmitted Power (Pt), Antenna Gain (G), Operating Frequency (f), and 
+   Target Radar Cross Section (RCS) on the Maximum Detection Range (Rmax).
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with Windows/Linux OS
+   - MATLAB (R2020a or later)
+
+3. BLOCK DIAGRAM (BASIC MONOSTATIC RADAR SYSTEM):
+   +-------------------+      +-------------------+      +-----------------+
+   |    Transmitter    | ---> |     Duplexer      | ---> |   Directional   |
+   |  (Peak Power Pt)  |      | (Tx / Rx Switch)  |      |  Antenna (Gain G)|
+   +-------------------+      +-------------------+      +-----------------+
+                                       |                          |
+                                       v                          | (RF Wave)
+                              +-------------------+               v
+                              |     Receiver      |      +-----------------+
+                              | (Sensitivity Pmin)| <--- |  Target (RCS)   |
+                              +-------------------+      +-----------------+
+                                       |
+                                       v
+                              +-------------------+
+                              |  Radar Display /  |
+                              |  Range Processor  |
+                              +-------------------+
+
+4. THEORY & FORMULAS:
+   The Radar Range Equation relates the maximum detection distance (Rmax) to 
+   the physical parameters of the radar transmitter, antenna, propagation 
+   medium, target, and receiver:
+
+   - Wavelength:
+     lambda = c / f
+
+   - Maximum Unambiguous Detection Range:
+     Rmax = [ (Pt * G^2 * lambda^2 * sigma) / ((4 * pi)^3 * Pmin) ]^(1/4)
+
+   - Received Echo Power at Distance R:
+     Pr = (Pt * G^2 * lambda^2 * sigma) / ((4 * pi)^3 * R^4)
+
+   Where:
+     Pt     = Peak Transmitted Power (Watts)
+     G      = Antenna Gain (dimensionless linear ratio)
+     lambda = Operating Wavelength (meters)
+     sigma  = Target Radar Cross Section, RCS (m^2)
+     Pmin   = Minimum Detectable Signal Power at Receiver (Watts)
+     c      = Speed of Light = 3 x 10^8 m/s
+
+   Key Observation:
+   Because Rmax is proportional to the 4th root of Pt and sigma, increasing 
+   transmitted power by 16 times only doubles the maximum detection range.
+
+5. PROCEDURE:
+   Step 1: Open MATLAB and clear the workspace using clc, clear, close all.
+   Step 2: Initialize baseline radar parameters: Pt = 10 kW, G = 1000, 
+           lambda = 0.03 m (f = 10 GHz), sigma = 1 m^2, Pmin = 1e-13 W.
+   Step 3: Define an anonymous function Rm for the Radar Range Equation.
+   Step 4: Compute and display the baseline Rmax in kilometers (14.59 km).
+   Step 5: Vary one parameter at a time (Pt, G, f, sigma) while keeping others 
+           constant, and plot the results in a 2x2 subplot window.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   Pt = 10e3; G = 1000; lam = 0.03; s = 1; Pmin = 1e-13;
+   Rm = @(Pt,G,l,s) (Pt.*G.^2.*l.^2.*s./((4*pi)^3*Pmin)).^(1/4);
+   fprintf('Base Rmax = %.2f km\n', Rm(Pt,G,lam,s)/1e3);
+
+   subplot(2,2,1); plot(1:100, Rm((1:100)*1e3,G,lam,s)/1e3); xlabel('Pt (kW)'); ylabel('Rmax (km)'); title('Pt vs Rmax'); grid on;
+   subplot(2,2,2); plot(10:1000, Rm(Pt,10:1000,lam,s)/1e3); xlabel('Gain'); ylabel('Rmax (km)'); title('Gain vs Rmax'); grid on;
+   subplot(2,2,3); plot(1:20, Rm(Pt,G,3e8./((1:20)*1e9),s)/1e3); xlabel('Freq (GHz)'); ylabel('Rmax (km)'); title('Freq vs Rmax'); grid on;
+   subplot(2,2,4); plot(0.1:0.1:10, Rm(Pt,G,lam,0.1:0.1:10)/1e3); xlabel('RCS (m^2)'); ylabel('Rmax (km)'); title('RCS vs Rmax'); grid on;
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Command Window: Base Rmax = 14.59 km
+   - Subplot 1 (Pt vs Rmax): Concave 4th-root curve showing diminishing range 
+     returns as transmitted power increases from 1 kW to 100 kW.
+   - Subplot 2 (Gain vs Rmax): Square-root growth curve (Rmax proportional to 
+     sqrt(G)), showing stronger sensitivity than power.
+   - Subplot 3 (Freq vs Rmax): Decaying curve; higher frequency shrinks 
+     wavelength (lambda), reducing antenna capture area and detection range.
+   - Subplot 4 (RCS vs Rmax): Concave 4th-root growth curve; larger targets 
+     reflect more energy and are detected farther away.
+
+8. CONCLUSION:
+   The Radar Range Equation was successfully simulated in MATLAB. It is 
+   concluded that Rmax is proportional to (Pt)^(1/4), G^(1/2), lambda^(1/2), 
+   and (sigma)^(1/4). Enhancing antenna gain and receiver sensitivity is far 
+   more efficient for extending range than solely increasing transmit power.
+
+
+================================================================================
+EXPERIMENT 2: RADAR TARGET DETECTION IN NOISE (ROC CURVES)
+================================================================================
+
+1. AIM:
+   To simulate radar target detection in Additive White Gaussian Noise (AWGN) 
+   using an Energy Detector and plot Probability of Detection (Pd) versus SNR 
+   and Receiver Operating Characteristic (ROC) curves (Pd vs Pfa).
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (RADAR THRESHOLD / ENERGY DETECTOR):
+   +-------------------+      +-------------------+      +-------------------+
+   |  Received Signal  | ---> |  Square-Law /     | ---> |    Integrator     |
+   |  y[n] = s[n]+w[n] |      |  Energy Detector  |      |  E = Sum(|y|^2)   |
+   +-------------------+      +-------------------+      +-------------------+
+                                                                   |
+                                                                   v
+   +-------------------+      +-------------------+      +-------------------+
+   |  Decision Output  | <--- |    Comparator     | <--- |  Threshold Level  |
+   |  H1 (Target) / H0 |      |   Is E > gamma?   |      |  (Set by Pfa)     |
+   +-------------------+      +-------------------+      +-------------------+
+
+4. THEORY & FORMULAS:
+   In real radar receivers, weak target echoes are corrupted by thermal noise 
+   (AWGN). Detection is formulated as a binary hypothesis test:
+     - H0 (Null Hypothesis)       : y[n] = w[n]        (Noise Only)
+     - H1 (Alternative Hypothesis): y[n] = s[n] + w[n] (Target + Noise)
+
+   - Energy Detector Test Statistic:
+     E = sum( |y[n]|^2 ) for n = 1 to N
+
+   - Performance Metrics:
+     1) Probability of False Alarm (Pfa): Probability that noise alone exceeds 
+        the threshold gamma under H0:  Pfa = P(E > gamma | H0)
+     2) Probability of Detection (Pd): Probability that target + noise exceeds 
+        the threshold gamma under H1:  Pd = P(E > gamma | H1)
+
+   - Receiver Operating Characteristic (ROC):
+     A plot of Pd versus Pfa for a fixed SNR. Lowering threshold gamma 
+     increases Pd (better sensitivity) at the cost of higher Pfa (more false 
+     alarms).
+
+5. PROCEDURE:
+   Step 1: Generate a 1000-sample frame with a rectangular target pulse placed 
+           between samples 401 and 500.
+   Step 2: Sweep SNR from -10 dB to +10 dB over M = 2000 Monte Carlo trials.
+   Step 3: Compute noise-only (H0) energies and set threshold gamma at the 
+           99th percentile to maintain Pfa = 0.01.
+   Step 4: Compute signal+noise (H1) energies and calculate Pd at each SNR.
+   Step 5: Fix SNR = -8 dB, sweep Pfa from 10^-3 to 1, and plot the ROC curve.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   N = 1000; p = zeros(1,N); p(401:500) = 1;
+   snr = -10:2:10; M = 2000; Pfa = 1e-2;
+
+   for k = 1:numel(snr)
+       sg = sqrt(mean(p.^2) / 10^(snr(k)/10));
+       e0 = sort(sum((sg*randn(M,N)).^2, 2));
+       e1 = sum((p + sg*randn(M,N)).^2, 2);
+       Pd(k) = mean(e1 > e0(ceil((1-Pfa)*M)));
+   end
+   figure; plot(snr, Pd, 'o-'); xlabel('SNR (dB)'); ylabel('Pd'); title('Pd vs SNR (Pfa = 0.01)'); grid on;
+
+   sg = sqrt(0.1 / 10^(-0.8));
+   e0 = sort(sum((sg*randn(M,N)).^2, 2));
+   e1 = sum((p + sg*randn(M,N)).^2, 2);
+   Pf = logspace(-3, 0, 30);
+   for i = 1:30
+       Pd2(i) = mean(e1 > e0(max(1, floor((1-Pf(i))*M))));
+   end
+   figure; semilogx(Pf, Pd2, 'o-'); xlabel('Pfa'); ylabel('Pd'); title('ROC Curve (at -8 dB SNR)'); grid on;
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Figure 1 (Pd vs SNR): S-shaped sigmoidal curve. Pd is near 0 at -10 dB, 
+     rises sharply between -4 dB and 0 dB, and saturates at Pd = 1.0 above 0 dB.
+   - Figure 2 (ROC Curve): Logarithmic curve showing Pd rising smoothly from 
+     near 0 to 1 as Pfa increases from 10^-3 to 10^0 at -8 dB SNR.
+
+8. CONCLUSION:
+   Radar target detection in AWGN was simulated using Monte Carlo trials. The 
+   results confirm that higher SNR significantly improves detection reliability 
+   and demonstrate the fundamental Neyman-Pearson trade-off between maximizing 
+   Pd and minimizing Pfa.
+
+
+================================================================================
+EXPERIMENT 3: DOPPLER FREQUENCY SHIFT SIMULATION
+================================================================================
+
+1. AIM:
+   To simulate the Doppler frequency shift caused by a moving radar target, 
+   extract the frequency shift using Fast Fourier Transform (FFT), and study its 
+   dependence on target radial velocity and radar carrier frequency.
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (CW DOPPLER RADAR SYSTEM):
+   +-------------------+      +-------------------+      +-----------------+
+   |  RF Oscillator    | ---> | Power Amplifier / | ---> |   Tx Antenna    |
+   |  (Frequency fc)   |      |     Splitter      |      |                 |
+   +-------------------+      +-------------------+      +-----------------+
+                                       |                          |
+                                       | (Reference fc)           v (fc +/- fd)
+                                       v                 +-----------------+
+   +-------------------+      +-------------------+      |  Moving Target  |
+   |  FFT Spectrum /   | <--- |  Mixer & Low-Pass | <--- |  (Velocity v)   |
+   |  Speed Display    |      |   Filter (|fd|)   |      +-----------------+
+   +-------------------+      +-------------------+
+
+4. THEORY & FORMULAS:
+   When a target moves with radial velocity (v) relative to a stationary radar 
+   operating at carrier frequency (fc), the reflected echo undergoes a Doppler 
+   frequency shift (fd):
+
+   - Two-Way Doppler Frequency Shift:
+     fd = (2 * v * fc) / c = (2 * v) / lambda
+
+   - Received Signal Frequency:
+     f_rx = fc + fd   (Target moving toward radar)
+     f_rx = fc - fd   (Target moving away from radar)
+
+   Where:
+     v  = Radial velocity of target (m/s)
+     fc = Radar carrier frequency (Hz)
+     c  = Speed of light (3 x 10^8 m/s)
+
+   Taking the FFT of the received baseband signal produces spectral peaks at 
+   +fd and -fd, allowing direct calculation of target speed: v = (fd * c)/(2*fc).
+
+5. PROCEDURE:
+   Step 1: Define c = 3e8 m/s, sampling frequency Fs = 100 kHz, and time axis.
+   Step 2: Set carrier frequency fc = 10 GHz and vary velocity v = 10 to 50 m/s.
+   Step 3: Compute fd for each velocity and display the [v, fd] table.
+   Step 4: Generate cosine Doppler signals and plot their double-sided FFT 
+           magnitude spectra in 5 subplots.
+   Step 5: Fix v = 30 m/s, sweep carrier frequency fc from 2 to 20 GHz, and 
+           plot fd versus fc.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   c = 3e8; Fs = 1e5; t = 0:1/Fs:0.1-1/Fs;
+   v = 10:10:50; fc = 10e9; fd = 2*v*fc/c;
+   disp([v; fd]');
+
+   N = numel(t); f = (-N/2:N/2-1)*Fs/N;
+   figure;
+   for k = 1:5
+       subplot(5,1,k);
+       plot(f, abs(fftshift(fft(cos(2*pi*fd(k)*t)))/N));
+       xlim([-5e3 5e3]); xlabel('Freq (Hz)'); ylabel('Mag'); title(['fd = ' num2str(round(fd(k),1)) ' Hz']); grid on;
+   end
+
+   fc2 = [2 5 10 15 20]*1e9; fd2 = 2*30*fc2/c;
+   figure; plot(fc2/1e9, fd2, '-o'); xlabel('Carrier Frequency (GHz)'); ylabel('Doppler Shift (Hz)'); title('fd vs fc (at v = 30 m/s)'); grid on;
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Command Window Table:
+     v = 10 m/s -> fd = 666.7 Hz; v = 30 m/s -> fd = 2000 Hz; v = 50 m/s -> 3333.3 Hz.
+   - Figure 1 (FFT Spectra): Each subplot exhibits two sharp symmetric peaks at 
+     +fd and -fd (because cos(2*pi*fd*t) contains positive and negative 
+     frequency components) that shift outward as target velocity increases.
+   - Figure 2 (fd vs fc): A straight line passing through the origin, proving 
+     linear proportionality between Doppler shift and carrier frequency.
+
+8. CONCLUSION:
+   Doppler frequency shift was simulated and verified using spectral FFT. The 
+   Doppler shift varies linearly with both target radial velocity and carrier 
+   frequency, enabling precise velocity measurement in CW and pulsed radars.
+
+
+================================================================================
+EXPERIMENT 4: MTI RADAR USING DELAY LINE CANCELLER
+================================================================================
+
+1. AIM:
+   To simulate a Moving Target Indicator (MTI) radar using a Single Delay Line 
+   Canceller in MATLAB and demonstrate the suppression of stationary ground 
+   clutter while retaining moving target echoes.
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (SINGLE DELAY LINE CANCELLER):
+   Received Signal x[n] --------+----------------------> (+) ---> Output y[n]
+                                |                         ^
+                                v                         | (-)
+                       +-----------------+                |
+                       |  1-Pulse Delay  | ---------------+
+                       |  (z^-1 = PRI)   |   x[n-1]
+                       +-----------------+
+
+4. THEORY & FORMULAS:
+   Ground-based radars receive strong unwanted echoes (clutter) from stationary 
+   objects such as mountains, buildings, and trees. Because stationary clutter 
+   has zero Doppler shift (fd = 0), its amplitude and phase remain constant 
+   from pulse to pulse.
+
+   - Single Delay Line Canceller Difference Equation:
+     y[n] = x[n] - x[n-1]
+
+   - Z-Domain Transfer Function:
+     H(z) = 1 - z^(-1)
+
+   - Frequency Response Magnitude:
+     |H(f)| = 2 * |sin(pi * f * PRI)|
+
+   - Blind Speeds (Nulls where |H(f)| = 0):
+     v_blind = (n * lambda * PRF) / 2   (n = 1, 2, 3...)
+
+   When consecutive pulses are subtracted, stationary clutter cancels out 
+   completely (y[n] = 0), whereas moving targets undergo a pulse-to-pulse 
+   phase shift and pass through to the output.
+
+5. PROCEDURE:
+   Step 1: Generate N = 1000 pulse samples.
+   Step 2: Create a stationary DC clutter signal (cl = 1 + small random noise).
+   Step 3: Create a moving target Doppler sine wave (tg = sin(2*pi*0.08*t)).
+   Step 4: Combine clutter, target, and receiver noise into received signal rx.
+   Step 5: Apply the single delay line canceller using diff(rx) and plot all 
+           four waveforms in a 4x1 subplot layout.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   N = 1000; t = 0:N-1;
+   cl = 1 + 0.1*randn(1,N);
+   tg = sin(2*pi*0.08*t);
+   rx = cl + tg + 0.1*randn(1,N);
+   mti = diff(rx);
+
+   subplot(4,1,1); plot(cl); ylabel('Amp'); title('1. Stationary Clutter (DC)'); grid on;
+   subplot(4,1,2); plot(tg); ylabel('Amp'); title('2. Moving Target Signal'); grid on;
+   subplot(4,1,3); plot(rx); ylabel('Amp'); title('3. Received Signal (Clutter + Target + Noise)'); grid on;
+   subplot(4,1,4); plot(mti); xlabel('Pulse Number'); ylabel('Amp'); title('4. MTI Output (Clutter Cancelled)'); grid on;
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Subplot 1 (Clutter): High constant DC baseline centered around +1.0.
+   - Subplot 2 (Moving Target): Clean sinusoidal oscillation centered at 0.
+   - Subplot 3 (Received Signal): Target sine wave shifted upward onto the +1.0 
+     clutter baseline.
+   - Subplot 4 (MTI Output): The +1.0 DC clutter offset is completely removed, 
+     restoring the oscillating moving target waveform around zero.
+
+8. CONCLUSION:
+   The Single Delay Line Canceller was successfully simulated. It acts as a 
+   comb/high-pass filter with nulls at zero Doppler frequency, effectively 
+   eliminating stationary clutter while preserving moving target detections.
+
+
+================================================================================
+EXPERIMENT 5: PULSE DOPPLER RADAR TARGET DETECTION
+================================================================================
+
+1. AIM:
+   To simulate a coherent Pulse Doppler Radar using Linear Frequency Modulated 
+   (LFM) chirp pulses, Matched Filtering, and 2D Slow-Time Doppler FFT to 
+   simultaneously detect range and velocity of multiple targets.
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (PULSE DOPPLER SIGNAL PROCESSING CHAIN):
+   +---------------+    +----------------+    +---------------+    +-----------+
+   |  LFM Chirp    | -> | Received 2D    | -> | Matched Filter| -> | Hamming   |
+   |  Generator    |    | Data Matrix rx |    | (Fast-Time)   |    | Window    |
+   +---------------+    +----------------+    +---------------+    +-----------+
+                                                                          |
+                                                                          v
+                                              +---------------+    +-----------+
+                                              | 2D Range-     | <- | Slow-Time |
+                                              | Doppler Map   |    | FFT (2D)  |
+                                              +---------------+    +-----------+
+
+4. THEORY & FORMULAS:
+   Pulse Doppler Radar transmits a coherent burst of Np pulses and arranges 
+   received samples into a 2D matrix (Fast-Time Range Bins x Slow-Time Pulses):
+
+   - LFM Chirp Waveform:
+     s(t) = exp( j * pi * (BW / pw) * (t - pw/2)^2 )
+
+   - Fast-Time Processing (Range Compression):
+     Each pulse is correlated with the time-reversed conjugate of the 
+     transmitted chirp via a Matched Filter: h(t) = s*(pw - t), yielding sharp 
+     range peaks with resolution Delta_R = c / (2 * BW).
+
+   - Slow-Time Processing (Velocity Extraction):
+     Taking an FFT across the Np pulses extracts pulse-to-pulse Doppler phase 
+     shifts, giving radial velocity: v = (fd * lambda) / 2.
+
+   - Unambiguous Limits:
+     Rmax = c / (2 * PRF) = 30 km,    Vmax = (lambda * PRF) / 4 = +/- 37.5 m/s
+
+5. PROCEDURE:
+   Step 1: Define radar parameters: fc = 10 GHz, PRF = 5 kHz, Fs = 20 MHz, 
+           pw = 10 us, BW = 5 MHz, Np = 64 pulses.
+   Step 2: Define three targets: (5 km, +20 m/s), (12 km, -15 m/s), and 
+           (20 km, +8 m/s).
+   Step 3: Synthesize the LFM chirp pulse and populate the 2D received matrix 
+           with range delays, Doppler phase shifts, and AWGN noise (10 dB SNR).
+   Step 4: Apply Matched Filtering along range bins and Doppler FFT with a 
+           Hamming window across the 64 pulses.
+   Step 5: Plot the normalized 2D Range-Doppler Map in decibels (dB).
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   c = 3e8; fc = 10e9; lam = c/fc; PRF = 5e3; Fs = 20e6; pw = 10e-6; BW = 5e6; Np = 64;
+   R = [5000 12000 20000]; V = [20 -15 8];
+   Ns = Fs/PRF; Npw = Fs*pw;
+
+   t = (0:Npw-1)'/Fs;
+   tx = exp(1j*pi*BW/pw*(t-pw/2).^2);
+   rx = zeros(Ns, Np);
+   for n = 1:3
+       d = round(2*R(n)/c*Fs);
+       rx(d+1:d+Npw,:) = rx(d+1:d+Npw,:) + tx*exp(1j*2*pi*2*V(n)/lam*(0:Np-1)/PRF);
+   end
+   rx = awgn(rx, 10, 'measured');
+
+   y = filter(conj(flipud(tx)), 1, rx);
+   D = fftshift(fft(y.*hamming(Np)', 128, 2), 2);
+   r = (0:Ns-1)*c/(2*Fs);
+   v = (-64:63)*PRF/128*lam/2;
+
+   imagesc(v, r/1e3, 20*log10(abs(D)/max(abs(D(:))))); axis xy; colorbar; clim([-50 0]);
+   xlabel('Velocity (m/s)'); ylabel('Range (km)'); title('2D Range-Doppler Map (dB)');
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - 2D Range-Doppler Heatmap: Displays a suppressed noise background (-50 dB) 
+     with three distinct high-intensity peaks corresponding to all three moving 
+     targets at their respective (Velocity, Range) coordinates:
+     Target 1 (+20 m/s, ~6.5 km), Target 2 (-15 m/s, ~13.5 km), Target 3 
+     (+8 m/s, ~21.5 km), including the matched filter group delay offset.
+
+8. CONCLUSION:
+   Pulse Doppler radar target detection was simulated in MATLAB. Combining LFM 
+   Matched Filtering (fast-time) and Doppler FFT (slow-time) accurately 
+   resolves both range and radial velocity of multiple targets in noise.
+
+
+================================================================================
+EXPERIMENT 6: RADAR DISPLAY SIMULATION (A-SCAN, B-SCAN, PPI)
+================================================================================
+
+1. AIM:
+   To simulate standard radar display formats—A-Scan, B-Scan, and Plan 
+   Position Indicator (PPI)—in MATLAB with a 360-degree rotating antenna sweep.
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (RADAR DISPLAY COORDINATE PROCESSING):
+   +-------------------+      +-------------------+      +-------------------+
+   |   Rotating Radar  | ---> |  Echo Detection   | ---> |  A-Scan Display   |
+   |  Antenna (0-360)  |      |  (Range R, Az)    |      |  (Amp vs Range)   |
+   +-------------------+      +-------------------+      +-------------------+
+                                       |
+                        +--------------+--------------+
+                        v                             v
+               +-----------------+           +-----------------+
+               | B-Scan Display  |           | Polar-to-Cart.  |
+               | (Range vs Az)   |           | X = R*sin(Az)   |
+               +-----------------+           | Y = R*cos(Az)   |
+                                             +-----------------+
+                                                      |
+                                                      v
+                                             +-----------------+
+                                             |   PPI Display   |
+                                             | (360 Polar Map) |
+                                             +-----------------+
+
+4. THEORY & FORMULAS:
+   Radar receivers extract target Range (R) and Azimuth angle (Az) in polar 
+   coordinates and render them on three primary operator screens:
+   1) A-Scan: 1D plot of Echo Amplitude (Y-axis) vs Range (X-axis).
+   2) B-Scan: 2D rectangular plot of Range (Y-axis) vs Azimuth Angle (X-axis).
+   3) PPI (Plan Position Indicator): 2D circular map centered on the radar 
+      (0,0) with a rotating sweep line. Because radar North is 0 degrees 
+      clockwise, polar-to-Cartesian conversion uses:
+      X = R * sin(Azimuth)
+      Y = R * cos(Azimuth)
+
+   Phosphor persistence is simulated using exponential decay: B_new = 0.99*B_old.
+
+5. PROCEDURE:
+   Step 1: Define 4 targets at ranges R = [25, 50, 75, 60] km and angles 
+           Az = [40, 120, 220, 300] degrees.
+   Step 2: Run a loop from ang = 1 to 360 degrees to simulate antenna rotation.
+   Step 3: Detect when the antenna beam (+/- 4 degrees) illuminates a target.
+   Step 4: Simultaneously update and animate the A-Scan, B-Scan, and circular 
+           PPI display with concentric range rings using drawnow.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   r = 0:100; th = linspace(0,2*pi,200);
+   R = [25 50 75 60]; Az = [40 120 220 300];
+   B = zeros(101, 360);
+
+   for ang = 1:360
+       hit = abs(mod(Az - ang + 180, 360) - 180) <= 4;
+       a = 0.02*rand(size(r)); B = 0.99*B;
+       for k = find(hit)
+           a = a + exp(-((r - R(k))/2).^2);
+           B(round(R(k))+1, Az(k)+1) = 1;
+       end
+       subplot(1,3,1); plot(r, a); ylim([0 1.2]); xlabel('Range (km)'); ylabel('Amp'); title('A-Scan');
+       subplot(1,3,2); imagesc(0:359, r, B); axis xy; xlabel('Azimuth (deg)'); ylabel('Range (km)'); title('B-Scan');
+       subplot(1,3,3); plot(R.*sind(Az), R.*cosd(Az), 'ro', [0 100*sind(ang)], [0 100*cosd(ang)], 'k', sin(th)'*(25:25:100), cos(th)'*(25:25:100), ':');
+       axis equal; axis([-100 100 -100 100]); xlabel('East-West (km)'); ylabel('North-South (km)'); title('PPI Display');
+       drawnow;
+   end
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Subplot 1 (A-Scan): Shows receiver noise floor with sharp Gaussian spikes 
+     appearing whenever the antenna beam sweeps across a target's range.
+   - Subplot 2 (B-Scan): Rectangular grid displaying bright target blips at 
+     (40, 25), (120, 50), (220, 75), and (300, 60) with gradual fading trails.
+   - Subplot 3 (PPI Display): Circular radar map with 4 range rings (25 to 
+     100 km), a rotating black sweep line, and 4 red target markers plotted at 
+     their true bird's-eye spatial positions.
+
+8. CONCLUSION:
+   A-Scan, B-Scan, and PPI radar displays were simulated in MATLAB. The PPI 
+   display provides the clearest bird's-eye spatial awareness by converting 
+   polar range-azimuth measurements into true 2D Cartesian coordinates.
+
+
+================================================================================
+EXPERIMENT 7: SATELLITE LINK BUDGET ANALYSIS
+================================================================================
+
+1. AIM:
+   To perform a complete Satellite Link Budget analysis in MATLAB by calculating 
+   Antenna Gains (Gt, Gr), EIRP, Free Space Path Loss (FSPL), Received Power 
+   (Pr), Thermal Noise (N), Carrier-to-Noise Ratio (C/N), and Link Margin.
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (SATELLITE DOWNLINK POWER BUDGET):
+   +-------------------+      +-------------------+      +-------------------+
+   | Satellite Tx      | ---> |  Tx Dish Antenna  | ---> |  Free Space Path  |
+   | (Pt = 100 W, Lt)  |      |  (Dt = 2.4 m, Gt) |      |  (FSPL + Rain)    |
+   +-------------------+      +-------------------+      +-------------------+
+                                                                   |
+                                                                   v
+   +-------------------+      +-------------------+      +-------------------+
+   | Demodulator       | <--- |  Receiver LNA     | <--- |  Rx Dish Antenna  |
+   | (C/N & Margin)    |      |  (T=500K, B=36MHz)|      |  (Dr = 1.8 m, Gr) |
+   +-------------------+      +-------------------+      +-------------------+
+
+4. THEORY & FORMULAS:
+   A Satellite Link Budget accounts for all gains and losses (in decibels) from 
+   the transmitter to the receiver:
+
+   - Parabolic Antenna Gain:
+     G (dBi) = 10 * log10( eta * (pi * D / lambda)^2 )
+
+   - Equivalent Isotropically Radiated Power (EIRP):
+     EIRP (dBW) = Pt (dBW) + Gt (dBi) - Lt (dB)
+
+   - Free Space Path Loss (FSPL):
+     FSPL (dB) = 20 * log10(4 * pi * R / lambda)
+
+   - Received Signal Power (Pr):
+     Pr (dBW) = EIRP - FSPL + Gr - L_other - L_rain
+
+   - Receiver Thermal Noise Power (N):
+     N (dBW) = 10 * log10(k * T * B)
+
+   - Carrier-to-Noise Ratio (C/N) & Link Margin:
+     C/N (dB)    = Pr - N
+     Margin (dB) = (C/N)_achieved - (C/N)_required
+
+   If Margin >= 0 dB, the communication link is FEASIBLE.
+
+5. PROCEDURE:
+   Step 1: Set f = 12 GHz, R = 38,000 km, Pt = 100 W (20 dBW), Dt = 2.4 m 
+           (eta = 65%), Dr = 1.8 m (eta = 60%), Lt = 2 dB, L_other = 1.5 dB, 
+           L_rain = 2 dB, T = 500 K, B = 36 MHz, and Required C/N = 10 dB.
+   Step 2: Calculate wavelength lambda, Gt, Gr, EIRP, FSPL, Pr, N, C/N, and 
+           Link Margin, and print all results in the Command Window.
+   Step 3: Sweep distance from 1,000 km to 50,000 km and plot Received Power 
+           (Pr) versus Distance.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   f = 12e9; R = 38000e3; lam = 3e8/f;
+   Gt = 10*log10(0.65*(pi*2.4/lam)^2);
+   Gr = 10*log10(0.60*(pi*1.8/lam)^2);
+
+   EIRP = 10*log10(100) + Gt - 2;
+   FSPL = 20*log10(4*pi*R/lam);
+   Pr = EIRP - FSPL + Gr - 1.5 - 2;
+   N = 10*log10(1.38e-23*500*36e6);
+   CN = Pr - N;
+   M = CN - 10;
+
+   fprintf('EIRP = %.2f dBW\nFSPL = %.2f dB\nPr = %.2f dBW\nN = %.2f dBW\nC/N = %.2f dB\nMargin = %.2f dB\n', EIRP, FSPL, Pr, N, CN, M);
+
+   d = linspace(1e3, 5e4, 20)*1e3;
+   plot(d/1e3, EIRP - 20*log10(4*pi*d/lam) + Gr - 3.5, 'o-', 'LineWidth', 1.5);
+   xlabel('Distance (km)'); ylabel('Received Power Pr (dBW)'); title('Received Power vs Distance'); grid on;
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Command Window Numerical Output:
+     Gt = 47.72 dBi | Gr = 44.87 dBi | EIRP = 65.72 dBW | FSPL = 205.62 dB
+     Pr = -98.53 dBW | N = -126.05 dBW | C/N = 27.52 dB | Margin = +17.52 dB
+   - Output Plot (Pr vs Distance): Logarithmic decay curve showing that as 
+     distance increases from 1,000 km to 50,000 km, received power drops 
+     smoothly from -67 dBW down to -101 dBW.
+
+8. CONCLUSION:
+   The Satellite Link Budget was evaluated in MATLAB. Despite a massive Free 
+   Space Path Loss of 205.62 dB over 38,000 km, high-gain dish antennas yield 
+   an achieved C/N of 27.52 dB and a positive Link Margin of +17.52 dB, 
+   confirming that the satellite link is highly feasible.
+
+
+================================================================================
+EXPERIMENT 8: SATELLITE ORBIT & GROUND TRACK SIMULATION
+================================================================================
+
+1. AIM:
+   To simulate circular satellite orbits—Low Earth Orbit (LEO), Medium Earth 
+   Orbit (MEO), and Geostationary Earth Orbit (GEO)—in 3D and plot their 
+   orbital periods and sub-satellite ground tracks in MATLAB.
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (ORBITAL MECHANICS & GROUND TRACK PROJECTION):
+   +-------------------+      +-------------------+      +-------------------+
+   |  Orbit Selection  | ---> |  Kepler's 3rd Law | ---> |  3D Orbit Plot    |
+   | (LEO / MEO / GEO) |      | T = 2*pi*sqrt(r^3 |      | (Earth Sphere +   |
+   +-------------------+      |          / mu)    |      |  Circular Path)   |
+                              +-------------------+      +-------------------+
+                                       |
+                                       v
+                              +-------------------+
+                              | 2D Ground Track   |
+                              | (Lat vs Lon Map)  |
+                              +-------------------+
+
+4. THEORY & FORMULAS:
+   According to Kepler's Third Law, the orbital period (T) of a satellite 
+   depends on the cube of its orbital radius (r = Re + h) from Earth's center:
+
+   - Orbital Radius:
+     r = Re + h   (where Earth radius Re = 6371 km)
+
+   - Kepler's Third Law (Orbital Period):
+     T = 2 * pi * sqrt(r^3 / mu)   (where mu = 398,600.4418 km^3/s^2)
+
+   - Standard Orbit Classes:
+     1) LEO (h = 500 km)    -> r = 6,871 km  -> T = 1.57 hours
+     2) MEO (h = 20,200 km) -> r = 26,571 km -> T = 11.97 hours (GPS)
+     3) GEO (h = 35,786 km) -> r = 42,157 km -> T = 23.93 hours (Stationary)
+
+   A Ground Track is the path traced by the sub-satellite point on Earth's 
+   surface directly beneath the orbiting satellite.
+
+5. PROCEDURE:
+   Step 1: Define altitudes [500, 20200, 35786] km and prompt user input (1-3).
+   Step 2: Calculate total orbital radius r = 6371 + alt(c) and orbital period 
+           T using Kepler's equation, printing T in hours.
+   Step 3: Generate a 3D Earth sphere using sphere(30) and plot the 3D circular 
+           equatorial orbit around Earth using plot3.
+   Step 4: Map orbital angles to Longitude (-180 to +180 deg) and Latitude 
+           (0 deg) to plot the equatorial ground track.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   alt = [500 20200 35786];
+   c = input('Enter 1 for LEO, 2 for MEO, 3 for GEO: ');
+   r = 6371 + alt(c);
+   T = 2*pi*sqrt(r^3/398600.4418);
+   fprintf('Orbital Period = %.2f hours\n', T/3600);
+
+   th = linspace(0, 2*pi, 500);
+   [a,b,d] = sphere(30);
+   figure;
+   surf(6371*a, 6371*b, 6371*d, 'EdgeColor', 'none'); hold on; axis equal; grid on;
+   plot3(r*cos(th), r*sin(th), 0*th, 'r--', 'LineWidth', 1.5);
+   xlabel('X (km)'); ylabel('Y (km)'); zlabel('Z (km)'); title('3D Satellite Orbit Around Earth');
+
+   figure;
+   plot(mod(th*180/pi + 180, 360) - 180, 0*th, 'b', 'LineWidth', 2); grid on;
+   xlim([-180 180]); ylim([-90 90]);
+   xlabel('Longitude (deg)'); ylabel('Latitude (deg)'); title('Equatorial Ground Track');
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Command Window Output: Prints Orbital Period = 1.57 hours (for LEO), 
+     11.97 hours (for MEO), or 23.93 hours (for GEO).
+   - Figure 1 (3D Orbit): Renders the 3D Earth sphere surrounded by a red 
+     dashed circular orbit in the equatorial plane.
+   - Figure 2 (Ground Track): Displays a horizontal line along Latitude = 0 deg 
+     spanning Longitude from -180 to +180 degrees.
+
+8. CONCLUSION:
+   Satellite orbits and ground tracks were simulated in MATLAB. Higher altitude 
+   increases orbital radius and orbital period according to Kepler's Third Law, 
+   with GEO satellites achieving a 23.93-hour sidereal period to appear 
+   stationary above Earth's equator.
+
+
+================================================================================
+EXPERIMENT 9: SYSTEM NOISE, C/N, AND G/T ANALYSIS
+================================================================================
+
+1. AIM:
+   To simulate receiver Thermal Noise Power (N), Carrier-to-Noise Ratio (C/N), 
+   and Earth Station Figure of Merit (G/T) in MATLAB and analyze their variation 
+   with System Noise Temperature (T) and Antenna Gain (G).
+
+2. APPARATUS / SOFTWARE REQUIRED:
+   - PC / Laptop with MATLAB installed
+
+3. BLOCK DIAGRAM (SATELLITE RECEIVER NOISE & G/T CHAIN):
+   +-------------------+      +-------------------+      +-------------------+
+   | Receiving Dish    | ---> | Low Noise Amp     | ---> |  IF Filter &      |
+   | Antenna (Gain G)  |      | (LNA, Low T_LNA)  |      |  Receiver (BW B)  |
+   +-------------------+      +-------------------+      +-------------------+
+                                                                   |
+                                                                   v
+                                                         +-------------------+
+                                                         | Output Quality:   |
+                                                         | N = kTB, C/N, G/T |
+                                                         +-------------------+
+
+4. THEORY & FORMULAS:
+   Random thermal motion of electrons inside antennas and receiver circuits 
+   generates Additive White Gaussian thermal noise:
+
+   - Thermal Noise Power:
+     N (Watts) = k * T_sys * B
+     N (dBW)   = 10 * log10(k * T_sys * B)
+
+   - Carrier-to-Noise Ratio (C/N):
+     C/N (dB) = Pc (dBW) - N (dBW)
+
+   - Earth Station Figure of Merit (G/T):
+     G/T (dB/K) = G (dBi) - 10 * log10(T_sys)
+
+   Where:
+     k     = Boltzmann's Constant = 1.38 x 10^-23 J/K (-228.6 dBW/K/Hz)
+     T_sys = Equivalent System Noise Temperature (Kelvin)
+     B     = Receiver Noise Bandwidth (Hz)
+     G     = Receiving Antenna Gain (dBi)
+
+   A higher G/T ratio indicates a more sensitive receiving station capable of 
+   detecting weaker satellite signals.
+
+5. PROCEDURE:
+   Step 1: Set nominal values: T = 150 K, G = 35 dBi, Pc = -100 dBW, 
+           B = 1 MHz, and k = 1.38e-23 J/K.
+   Step 2: Calculate and print nominal Noise Power N (-146.84 dBW), C/N ratio 
+           (46.84 dB), and Figure of Merit G/T (13.24 dB/K).
+   Step 3: Vary T from 50 K to 500 K and G from 20 dBi to 50 dBi.
+   Step 4: Plot four subplots: N vs T, C/N vs T, G/T vs G, and G/T vs T.
+
+6. MATLAB CODE:
+   clc; clear; close all;
+   T = 150; G = 35; Pc = -100; k = 1.38e-23; B = 1e6;
+   N = @(T) 10*log10(k*T*B);
+   fprintf('Noise Power = %.2f dBW | C/N = %.2f dB | G/T = %.2f dB/K\n', N(T), Pc-N(T), G-10*log10(T));
+
+   Tr = 50:10:500;
+   subplot(2,2,1); plot(Tr, N(Tr)); xlabel('Temp T (K)'); ylabel('Noise N (dBW)'); title('Noise Power vs Temp'); grid on;
+   subplot(2,2,2); plot(Tr, Pc - N(Tr)); xlabel('Temp T (K)'); ylabel('C/N (dB)'); title('C/N vs Temp'); grid on;
+   subplot(2,2,3); plot(20:50, (20:50) - 10*log10(T)); xlabel('Gain G (dBi)'); ylabel('G/T (dB/K)'); title('G/T vs Antenna Gain'); grid on;
+   subplot(2,2,4); plot(Tr, G - 10*log10(Tr)); xlabel('Temp T (K)'); ylabel('G/T (dB/K)'); title('G/T vs Temp'); grid on;
+
+7. EXPECTED OUTPUT & GRAPH ANALYSIS:
+   - Command Window Output:
+     Noise Power = -146.84 dBW | C/N = 46.84 dB | G/T = 13.24 dB/K
+   - Subplot 1 (Noise vs Temp): Logarithmic increase in noise floor from 
+     -151.6 dBW at 50 K to -141.6 dBW at 500 K.
+   - Subplot 2 (C/N vs Temp): Logarithmic decrease in C/N from 51.6 dB down to 
+     41.6 dB as system temperature increases.
+   - Subplot 3 (G/T vs Antenna Gain): Straight linear line with a 1:1 slope 
+     (1 dB increase in G yields 1 dB/K increase in G/T).
+   - Subplot 4 (G/T vs Temp): Decaying logarithmic curve showing G/T dropping 
+     from 18.01 dB/K to 8.01 dB/K as noise temperature rises.
+
+8. CONCLUSION:
+   System noise, C/N, and G/T were analyzed in MATLAB. Higher system noise 
+   temperature increases thermal noise floor and degrades both C/N and G/T, 
+   demonstrating why low-noise front-end amplifiers (LNAs) and high-gain 
+   antennas are critical in satellite ground stations.
+================================================================================
